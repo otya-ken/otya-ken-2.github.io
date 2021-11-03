@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="ja">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Document</title>
+    </head>
+    <body>
+        <h1>音源の作成　audioタグからの読み込み</h1>
+        <button id="play">play</button>
+        <button id="pause">pause</button>
+        <audio controls src="/Users/ken/Desktop/卒研/javascript/BASIC5000_0001.wav"></audio>
+    </body>
+    <script>
+        window.AudioContext = window.AudioContext || window.webkitAudioContext;
+        const ctx = new AudioContext();
+        
+        const audioElement = document.querySelector("audio");
+        // Web Audio API内で使える形に変換
+        const track = ctx.createMediaElementSource(audioElement);
+
+        document.querySelector("#play").addEventListener("click", () => {
+            if (ctx.state === "suspended") {
+                ctx.resume();
+            }
+            // 出力につなげる
+            track.connect(ctx.destination);
+            audioElement.play();
+        });
+
+        // audioElementを一時停止する
+        document.querySelector("#pause").addEventListener("click", () => {
+            audioElement.pause();
+        });
+    </script>
+    <style>
+        div{
+            padding-bottom: 40px;
+            border-bottom: 2px solid #666;
+        }
+    </style>
+</html>
