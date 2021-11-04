@@ -1,61 +1,64 @@
 <!DOCTYPE html>
-<html lang="">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Web Audio API</title>
-    </head>
-    <body>
-        <h1>音源の作成　ファイルをbufferとして読み込む</h1>
-        <button id="play">play</button>
-        <button id="stop">stop</button>
-    </body>
-    <script>
-        window.AudioContext = window.AudioContext || window.webkitAudioContext;
-        const ctx = new AudioContext();
+<html>
+<head>
+<meta charset="UTF-8">
+<script>
+var audioCtx;
+var firstFlag = true;
+ 
+function onDragOver(event){ 
+  event.preventDefault(); 
+} 
+  
+function onDrop(event){
+  onAddFile(event);
+  event.preventDefault(); 
+}  
+ 
+function onAddFile(event) {
+  var files;
+  var reader = new FileReader();
+  
+  if(event.target.files){
+    files = event.target.files;
+  }else{ 
+    files = event.dataTransfer.files;   
+  }    
+ 
+  reader.onload = function (event) {
+ 
+    if(firstFlag){
+      audioCtx =  new AudioContext(); 
+      firstFlag = false;     
+    }    
     
-        let sampleSource;
-        // 再生中でtrue
-        let isPlaying = false;
-
-        // 音源を取得しAudioBuffer形式に変換して返す関数
-        async function setupSample() {
-            const response = await fetch("../BASIC5000_0001.wav");
-            const arrayBuffer = await response.arrayBuffer();
-            // Web Audio APIで使える形式に変換
-            const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
-            return audioBuffer;
-        }
-    
-        // AudioBufferをctxに接続し再生する関数
-        function playSample(ctx, audioBuffer) {
-            sampleSource = ctx.createBufferSource();
-            // 変換されたバッファーを音源として設定
-            sampleSource.buffer = audioBuffer;
-            // 出力につなげる
-            sampleSource.connect(ctx.destination);
-            sampleSource.start();
-            isPlaying = true
-        }
-
-        console.log(setupSample());
-        document.querySelector("#play").addEventListener("click", async () => {
-            // 再生中なら二重に再生されないようにする
-            if(isPlaying) return;
-            const sample = await setupSample();
-            playSample(ctx, sample);
-        });
-
-        // oscillatorを破棄し再生を停止する
-        document.querySelector("#stop").addEventListener("click", async () => {
-            sampleSource?.stop();
-            isPlaying = false
-        });
-    </script>
-    <style>
-        div{
-            padding-bottom: 40px;
-            border-bottom: 2px solid #666;
-        }
-    </style>
+    audioCtx.decodeAudioData(reader.result).then(function(source) {
+      
+      // 曲の秒数
+      alert(source.duration + "秒\n"+
+            "サンプリング周波数 : " + source.sampleRate + "\n" +
+            "チャンネル数 : " + source.numberOfChannels);
+      
+      console.log(source);      
+      
+    }).catch(function(e){
+      alert("It is a format not supported.\n"+e);
+    });     
+  };
+  
+  if (files[0]){    
+    reader.readAsArrayBuffer(files[0]); 
+    document.getElementById("inputfile").value = "";
+  }
+}      
+</script>
+ 
+</head>
+<body ondrop="onDrop(event);" ondragover="onDragOver(event);">  
+<p></p>
+<table>
+  <tr><th>Audio File</th><td>&nbsp;<input type="file" id="inputfile" onchange="onAddFile(event);"></td></tr>
+</table>    
+<p></p>    
+</body>
 </html>
