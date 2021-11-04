@@ -39,6 +39,8 @@ function onAddFile(event) {
             "サンプリング周波数 : " + source.sampleRate + "\n" +
             "チャンネル数 : " + source.numberOfChannels);
       
+    const sample_frequency = source.sampleRate;
+    const num_frames = source.sampleRate * source.duration;
       console.log(source);      
       
     }).catch(function(e){
