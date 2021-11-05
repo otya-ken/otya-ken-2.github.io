@@ -40,11 +40,13 @@
         }
         
         async function stft() {
+            var frame_size = 25;
+            var frame_shift = 10;
             const file = await fetch(wav_file);
             const arraybuffer = await file.arrayBuffer();
             const audiobuffer = await ctx.decodeAudioData(arraybuffer);
             const sample_frequency = audiobuffer.sampleRate;
-            console.log(sample_frequency);
+            const num_frames = sample_frequency * audiobuffer.duration;
         }
         
         stft();
