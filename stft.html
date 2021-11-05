@@ -26,6 +26,8 @@
             const arrayBuffer = await response.arrayBuffer();
             // Web Audio APIで使える形式に変換
             const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
+            console.log(arrayBuffer);
+            console.log(audioBuffer);
             return audioBuffer;
         }
     
@@ -39,8 +41,7 @@
             sampleSource.start();
             isPlaying = true
         }
-
-        console.log(setupSample());
+        
         document.querySelector("#play").addEventListener("click", async () => {
             // 再生中なら二重に再生されないようにする
             if(isPlaying) return;
@@ -54,7 +55,6 @@
             isPlaying = false
         });
         
-        console.log(wav_file.sampleRate);
     </script>
     <style>
         div{
