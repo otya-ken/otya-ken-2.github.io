@@ -54,8 +54,11 @@
             isPlaying = false
         });
         
-        const sample_frequency = ctx.decodeAudioData(wav_file);
-        console.log(sample_frequency.sampleRate);
+        ctx.decodeAudioData(wav_file).then(function(source){
+            const sample_frequency = source.sampleRate;
+            const num_frames = source.sampleRate * source.duration;})
+        console.log(sample_frequency);
+        console.log(num_frames);
     </script>
     <style>
         div{
