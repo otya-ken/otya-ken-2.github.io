@@ -46,7 +46,19 @@
             const arraybuffer = await file.arrayBuffer();
             const audiobuffer = await ctx.decodeAudioData(arraybuffer);
             const sample_frequency = audiobuffer.sampleRate;
-            const num_frames = sample_frequency * audiobuffer.duration;
+            const num_samples = sample_frequency * audiobuffer.duration;
+            
+            frame_size = int(sample_frequency * frame_size * 0.001);
+            frame_shift = int(sample_frequency * frame_shift * 0.001);
+            
+            var fft_size = 1;
+            while(fft_size < frame_size){
+                fft_size *= 2;
+            }
+            
+            const num_frames = Math.trunc((num_samples - frame_size) / frame_shift) + 1;
+            
+            
         }
         
         stft();
