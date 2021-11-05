@@ -4,13 +4,20 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>Web Audio API</title>
+        
+        <script src="./main.js"></script>
     </head>
-    <body>
+    <body ondrop="onDrop(event);" ondragover="onDragOver(event);">
+        <p></p>
+        <table>
+        <tr><th>Audio File</th><td>&nbsp;<input type="file" id="inputfile" onchange="onAddFile(event);"></td></tr>
+        </table>    
+        <p></p>
+        
         <h1>音源の作成　ファイルをbufferとして読み込む</h1>
         <button id="play">play</button>
         <button id="stop">stop</button>
     </body>
-    <script src="./main.js"></script>
     <style>
         div{
             padding-bottom: 40px;
