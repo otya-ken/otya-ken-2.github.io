@@ -39,13 +39,14 @@
             isPlaying = true
         }
         
-        const file = fetch(wav_file);
-        const arraybuffer = file.arrayBuffer();
-        const audiobuffer = ctx.decodeAudioData(arraybuffer);
-        const sample_frequency = audiobuffer.sampleRate;
-        console.log(arraybuffer);
-        console.log(audiobuffer);
-        console.log(sample_frequency);
+        async function stft() {
+            const file = await fetch(wav_file);
+            const arraybuffer = await file.arrayBuffer();
+            const audiobuffer = await ctx.decodeAudioData(arraybuffer);
+            const sample_frequency = audiobuffer.sampleRate;
+            console.log(sample_frequency);
+        }
+        
         
         document.querySelector("#play").addEventListener("click", async () => {
             // 再生中なら二重に再生されないようにする
