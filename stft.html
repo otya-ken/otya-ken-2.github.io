@@ -26,11 +26,10 @@
             const arrayBuffer = await response.arrayBuffer();
             // Web Audio APIで使える形式に変換
             const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
-            console.log(arrayBuffer);
-            console.log(audioBuffer);
             return audioBuffer;
         }
-    
+        console.log(arrayBuffer);
+        console.log(audioBuffer);
         // AudioBufferをctxに接続し再生する関数
         function playSample(ctx, audioBuffer) {
             sampleSource = ctx.createBufferSource();
