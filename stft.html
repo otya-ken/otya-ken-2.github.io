@@ -28,8 +28,6 @@
             const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
             return audioBuffer;
         }
-        console.log(arrayBuffer);
-        console.log(audioBuffer);
         // AudioBufferをctxに接続し再生する関数
         function playSample(ctx, audioBuffer) {
             sampleSource = ctx.createBufferSource();
@@ -40,6 +38,14 @@
             sampleSource.start();
             isPlaying = true
         }
+        
+        const file = fetch(wav_file);
+        const arraybuffer = file.arrayBuffer();
+        const audiobuffer = ctx.decodeAudioData(arraybuffer);
+        const sample_frequency = audiobuffer.sampleRate;
+        console.log(arraybuffer);
+        console.log(audiobuffer);
+        console.log(sample_frequency);
         
         document.querySelector("#play").addEventListener("click", async () => {
             // 再生中なら二重に再生されないようにする
