@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<script>
+var audioCtx;
+var firstFlag = true;
+ 
+function onDragOver(event){ 
+  event.preventDefault(); 
+} 
+  
+function onDrop(event){
+  onAddFile(event);
+  event.preventDefault(); 
+}  
+ 
+function onAddFile(event) {
+  var files;
+  var reader = new FileReader();
+  
+  if(event.target.files){
+    files = event.target.files;
+  }else{ 
+    files = event.dataTransfer.files;   
+  }    
+ 
+  reader.onload = function (event) {
+ 
+    if(firstFlag){
+      audioCtx =  new AudioContext(); 
+      firstFlag = false;     
+    }    
+    
+    audioCtx.decodeAudioData(reader.result).then(function(source) {
+      
+      // 曲の秒数
+      alert(source.duration + "秒\n"+
+            "サンプリング周波数 : " + source.sampleRate + "\n" +
+            "チャンネル数 : " + source.numberOfChannels);
+      
+    const sample_frequency = source.sampleRate;
+    const num_frames = source.sampleRate * source.duration;
+    console.log(sample_frequency);
+    console.log(num_frames);
+      console.log(source);      
+      
+    }).catch(function(e){
+      alert("It is a format not supported.\n"+e);
+    });     
+  };
+  
+  if (files[0]){    
+    reader.readAsArrayBuffer(files[0]); 
+    document.getElementById("inputfile").value = "";
+  }
+}      
+</script>
+ 
+</head>
+<body ondrop="onDrop(event);" ondragover="onDragOver(event);">  
+<p></p>
+<table>
+  <tr><th>Audio File</th><td>&nbsp;<input type="file" id="inputfile" onchange="onAddFile(event);"></td></tr>
+</table>    
+<p></p>    
+</body>
+</html>
