@@ -70,11 +70,17 @@
             
             const num_frames = Math.trunc((num_samples - frame_size) / frame_shift) + 1;
             
-            var spectrogram = tf.zeros([num_frames, parseInt(fft_size / 2) + 1]);
+            var spectrogram = tf.signal.stft(buffer, frame_size, frame_shift, fft_size, 
+                                             tf.signal.hamming_window);
+            console.log(spectrogram);
+            
+            // var spectrogram = tf.zeros([num_frames, parseInt(fft_size / 2) + 1]);
             
             // for (var frame_idx = 0; frame_idx < num_frames; frame_idx++) {
             //     var start_index = frame_idx * frame_shift;
-            //     var frame = 
+            //     var frame = buffer.slice(start_index, start_index + frame_size);
+            //     ハミング窓
+            //     
             // }
         }
         
