@@ -50,14 +50,15 @@
             const sample_frequency = audiobuffer.sampleRate;
             const num_samples = sample_frequency * audiobuffer.duration;
             
-            var buffer = new Uint8Array(num_samples);
-            analyser.getByteFrequencyData(buffer);
-            console.log(buffer);
+            // var buffer = new Uint8Array(num_samples);
+            // analyser.getByteFrequencyData(buffer);
+            // console.log(buffer);
+            console.log(arraybuffer);
             
             console.log(sample_frequency);
             console.log(num_samples);
-            frame_size = int(sample_frequency * frame_size * 0.001);
-            frame_shift = int(sample_frequency * frame_shift * 0.001);
+            frame_size = parseInt(sample_frequency * frame_size * 0.001);
+            frame_shift = parseInt(sample_frequency * frame_shift * 0.001);
             
             var fft_size = 1;
             while(fft_size < frame_size){
@@ -68,7 +69,7 @@
             
             const num_frames = Math.trunc((num_samples - frame_size) / frame_shift) + 1;
             
-            var spectrogram = tf.zero([num_frames, int(fft_size / 2) + 1]);
+            var spectrogram = tf.zero([num_frames, parseInt(fft_size / 2) + 1]);
             
             // for (var frame_idx = 0; frame_idx < num_frames; frame_idx++) {
             //     start_index = frame_idx * frame_shift;
