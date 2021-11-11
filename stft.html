@@ -51,7 +51,7 @@
             const num_samples = sample_frequency * audiobuffer.duration;
             
             var buffer = new Uint8Array(num_samples);
-            audiobuffer.getByteFrequencyData(buffer);
+            audiobuffer.analyser.getByteFrequencyData(buffer);
             console.log(buffer);
             
             console.log(sample_frequency);
