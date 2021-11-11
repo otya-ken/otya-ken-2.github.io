@@ -50,13 +50,12 @@
             const sample_frequency = audiobuffer.sampleRate;
             const num_samples = sample_frequency * audiobuffer.duration;
             
-            // var buffer = new Uint8Array(num_samples);
-            // analyser.getByteFrequencyData(buffer);
-            // console.log(buffer);
-            console.log(arraybuffer);
+            var buffer = new Uint8Array(num_samples);
+            audiobuffer.getByteFrequencyData(buffer);
+            console.log(buffer);
             
             console.log(sample_frequency);
-            console.log(num_samples === audiobuffer.length);
+            // console.log(num_samples === audiobuffer.length);
             console.log(num_samples);
             frame_size = parseInt(sample_frequency * frame_size * 0.001);
             frame_shift = parseInt(sample_frequency * frame_shift * 0.001);
