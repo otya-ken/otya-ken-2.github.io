@@ -44,15 +44,17 @@
             var frame_size = 25;
             var frame_shift = 10;
             const analyser = ctx.createAnalyser();
+            const source = ctx.createBufferSource();
             const file = await fetch(wav_file);
             const arraybuffer = await file.arrayBuffer();
             const audiobuffer = await ctx.decodeAudioData(arraybuffer);
             const sample_frequency = audiobuffer.sampleRate;
             const num_samples = sample_frequency * audiobuffer.duration;
+            console.log(audiobuffer);
             
-            var buffer = new Uint8Array(num_samples);
-            audiobuffer.analyser.getByteFrequencyData(buffer);
-            console.log(buffer);
+            // var buffer = new Uint8Array(num_samples);
+            // analyser.getByteFrequencyData(buffer);
+            // console.log(buffer);
             
             console.log(sample_frequency);
             // console.log(num_samples === audiobuffer.length);
@@ -72,8 +74,8 @@
             var spectrogram = tf.zeros([num_frames, parseInt(fft_size / 2) + 1]);
             
             // for (var frame_idx = 0; frame_idx < num_frames; frame_idx++) {
-            //     start_index = frame_idx * frame_shift;
-            //     
+            //     var start_index = frame_idx * frame_shift;
+            //     var frame = 
             // }
         }
         
