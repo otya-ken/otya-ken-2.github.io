@@ -10,6 +10,7 @@
         <button id="play">play</button>
         <button id="stop">stop</button>
     </body>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@2.0.0/dist/tf.min.js"></script>
     <script>
         window.AudioContext = window.AudioContext || window.webkitAudioContext;
         const ctx = new AudioContext();
@@ -49,6 +50,10 @@
             const sample_frequency = audiobuffer.sampleRate;
             const num_samples = sample_frequency * audiobuffer.duration;
             
+            var buffer = new Uint8Array(num_samples);
+            analyser.getByteFrequencyData(buffer);
+            console.log(buffer);
+            
             console.log(sample_frequency);
             console.log(num_samples);
             frame_size = int(sample_frequency * frame_size * 0.001);
@@ -58,16 +63,17 @@
             while(fft_size < frame_size){
                 fft_size *= 2;
             }
-            analyser.fftsize = 1 << fft_size;
+            analyser.fftsize = 1 << fft_size;         // fft_size = 2048
+            var length = analyser.frequencyBinCount;  // length = 1024
             
             const num_frames = Math.trunc((num_samples - frame_size) / frame_shift) + 1;
             
-            // 0行列の生成
+            var spectrogram = tf.zero([num_frames, int(fft_size / 2) + 1]);
             
-            for (var frame_idx = 0; frame_idx < num_frames; frame_idx++) {
-                start_index = frame_idx * frame_shift;
-                
-            }
+            // for (var frame_idx = 0; frame_idx < num_frames; frame_idx++) {
+            //     start_index = frame_idx * frame_shift;
+            //     
+            // }
         }
         
         stft();
