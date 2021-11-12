@@ -78,7 +78,7 @@
             var spectrogram = tf.signal.stft(signals, frame_size, frame_shift, fft_size, 
                                              tf.signal.hamming_window);
             console.log(spectrogram);
-            spectrogram.print();
+            spectrogram.print();      // 317 x 1025行列(テンソル)
             
             var n_spectrogram = spectrogram.dataSync();
             console.log(n_spectrogram.slice(0, 5));
