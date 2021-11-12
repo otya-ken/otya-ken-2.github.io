@@ -80,8 +80,8 @@
             console.log(spectrogram);
             spectrogram.print();
             
-            var n_spectrogram = spectrogram.dataSync();
-            console.log(n_spectrogram.slice(0, 5));
+            var n_spectrogram = spectrogram.arraySync();
+            console.log(n_spectrogram[0].slice(0, 5));
             
             // var spectrogram = tf.zeros([num_frames, parseInt(fft_size / 2) + 1]);
             
