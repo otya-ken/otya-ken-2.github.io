@@ -109,9 +109,9 @@
             }
             
             // istft
-            // var re_frequency = tf.signal.inverse_stft(spectrogram, frame_size, frame_shift, fft_size, 
-            //                                           tf.signal.hamming_window);
-            // re_frequency.print();
+            var re_frequency = tf.signal.inverse_stft(spectrogram, frame_size, frame_shift, fft_size, 
+                                                      tf.signal.hamming_window);
+            re_frequency.print();
         }
         
         stft_draw_istft();
