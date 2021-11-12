@@ -40,7 +40,7 @@
             isPlaying = true
         }
         
-        async function stft() {
+        async function stft_draw_istft() {
             var frame_size = 25;
             var frame_shift = 10;
             const analyser = ctx.createAnalyser();
@@ -57,10 +57,12 @@
             const signals = tf.tensor1d(buffer);
             
             console.log(sample_frequency);
-            // console.log(num_samples === audiobuffer.length);
+            // console.log(num_samples === audiobuffer.length);   True
             console.log(num_samples);
-            frame_size = parseInt(sample_frequency * frame_size * 0.001);
-            frame_shift = parseInt(sample_frequency * frame_shift * 0.001);
+            
+            // stft
+            frame_size = parseInt(sample_frequency * frame_size * 0.001);   // frame_size = 1102
+            frame_shift = parseInt(sample_frequency * frame_shift * 0.001); // frame_shift = 441
             
             var fft_size = 1;
             while(fft_size < frame_size){
@@ -72,13 +74,9 @@
             const num_frames = Math.trunc((num_samples - frame_size) / frame_shift) + 1;
             
             console.log(frame_size, frame_shift, fft_size);
-            // var tf_frame_size = tf.scalar(frame_size);
-            // var tf_frame_shift = tf.scalar(frame_shift);
-            // var tf_fft_size = tf.scalar(fft_size);
-            // console.log(tf_frame_size, tf_frame_shift, tf_fft_size);
             
             var spectrogram = tf.signal.stft(signals, frame_size, frame_shift, fft_size, 
-                                            tf.signal.hamming_window);
+                                             tf.signal.hamming_window);
             console.log(spectrogram);
             spectrogram.print();
             
@@ -92,9 +90,16 @@
             //     }
             //     
             // }
+            
+            //draw
+            
+            //istft
+            var re_frequency = tf.signal.inverse_stft(spectrogram, frame_size, frame_shift, fft_size, 
+                                                     tf.signal.hamming_window);
+            re_frequency.print();
         }
         
-        stft();
+        stft_draw_istft();
         
         document.querySelector("#play").addEventListener("click", async () => {
             // 再生中なら二重に再生されないようにする
