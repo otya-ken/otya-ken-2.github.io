@@ -72,8 +72,8 @@
             
             console.log(frame_size, frame_shift, fft_size);
             
-            var spectrogram = tf.signal.stft(buffer, frame_size, frame_shift, fft_size, 
-                                             tf.signal.hamming_window);
+            // var spectrogram = tf.signal.stft(buffer, frame_size, frame_shift, fft_size, 
+            //                                  tf.signal.hamming_window);
             // console.log(spectrogram);
             
             // var spectrogram = tf.zeros([num_frames, parseInt(fft_size / 2) + 1]);
@@ -81,7 +81,9 @@
             // for (var frame_idx = 0; frame_idx < num_frames; frame_idx++) {
             //     var start_index = frame_idx * frame_shift;
             //     var frame = buffer.slice(start_index, start_index + frame_size);
-            //     ハミング窓
+            //     for (var n = 0; n < frame_size; n++) {
+            //         frame[n] *= 0.54 - 0.46 * Math.cos(2 * Math.PI * n / (frame_size - 1))
+            //     }
             //     
             // }
         }
