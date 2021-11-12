@@ -71,6 +71,7 @@
             
             const num_frames = Math.trunc((num_samples - frame_size) / frame_shift) + 1;
             
+            
             console.log(frame_size, frame_shift, fft_size);
             
             var spectrogram = tf.signal.stft(signals, frame_size, frame_shift, fft_size, 
