@@ -9,6 +9,7 @@
         <h1>音源の作成　ファイルをbufferとして読み込む</h1>
         <button id="play">play</button>
         <button id="stop">stop</button>
+        <canvas id="canvas"></canvas>
     </body>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@2.0.0/dist/tf.min.js"></script>
     <script>
@@ -80,7 +81,7 @@
             console.log(spectrogram);
             spectrogram.print();      // 317 x 1025行列(テンソル)
             
-            var n_spectrogram = spectrogram.dataSync();
+            var n_spectrogram = spectrogram.dataSync();   // 一次元配列324925要素
             console.log(n_spectrogram.slice(0, 5));
             
             // var spectrogram = tf.zeros([num_frames, parseInt(fft_size / 2) + 1]);
@@ -95,6 +96,17 @@
             // }
             
             // draw
+            const canvas = document.getElementById('canvas');
+            const graph = canvas.getContext('2d');
+            for (let i = 0; i < 6; i++) {
+                for (let j = 0; j < 6; j++) {
+                    graph.fillStyle = `rgb(
+                    ${Math.floor(255 - 42.5 * i)},
+                    ${Math.floor(255 - 42.5 * j)},
+                    0)`;
+                graph.fillRect(j * 25, i * 25, 25, 25);
+                }
+            }
             
             // istft
             // var re_frequency = tf.signal.inverse_stft(spectrogram, frame_size, frame_shift, fft_size, 
