@@ -72,12 +72,12 @@
             const num_frames = Math.trunc((num_samples - frame_size) / frame_shift) + 1;
             
             console.log(frame_size, frame_shift, fft_size);
-            var tf_frame_size = tf.scalar(frame_size);
-            var tf_frame_shift = tf.scalar(frame_shift);
-            var tf_fft_size = tf.scalar(fft_size);
-            console.log(tf_frame_size, tf_frame_shift, tf_fft_size);
+            // var tf_frame_size = tf.scalar(frame_size);
+            // var tf_frame_shift = tf.scalar(frame_shift);
+            // var tf_fft_size = tf.scalar(fft_size);
+            // console.log(tf_frame_size, tf_frame_shift, tf_fft_size);
             
-            var spectrogram = tf.signal.stft(signals, tf_frame_size, tf_frame_shift, tf_fft_size, 
+            var spectrogram = tf.signal.stft(signals, frame_size, frame_shift, fft_size, 
                                             tf.signal.hamming_window);
             console.log(spectrogram);
             
