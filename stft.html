@@ -80,6 +80,9 @@
             console.log(spectrogram);
             spectrogram.print();
             
+            var n_spectrogram = spectrogram.dataSync();
+            console.log(n_spectrogram.slice(0, 5));
+            
             // var spectrogram = tf.zeros([num_frames, parseInt(fft_size / 2) + 1]);
             
             // for (var frame_idx = 0; frame_idx < num_frames; frame_idx++) {
@@ -91,12 +94,12 @@
             //     
             // }
             
-            //draw
+            // draw
             
-            //istft
-            var re_frequency = tf.signal.inverse_stft(spectrogram, frame_size, frame_shift, fft_size, 
-                                                     tf.signal.hamming_window);
-            re_frequency.print();
+            // istft
+            // var re_frequency = tf.signal.inverse_stft(spectrogram, frame_size, frame_shift, fft_size, 
+            //                                          tf.signal.hamming_window);
+            // re_frequency.print();
         }
         
         stft_draw_istft();
