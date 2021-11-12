@@ -74,7 +74,7 @@
             console.log(frame_size, frame_shift, fft_size);
             
             var spectrogram = tf.signal.stft(signals, frame_size, frame_shift, fft_size, 
-            //                                  tf.signal.hamming_window);
+                                            tf.signal.hamming_window);
             // console.log(spectrogram);
             
             // var spectrogram = tf.zeros([num_frames, parseInt(fft_size / 2) + 1]);
