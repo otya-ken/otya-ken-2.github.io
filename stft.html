@@ -54,6 +54,7 @@
             
             var buffer = audiobuffer.getChannelData(0);
             console.log(buffer.slice(0, 5));
+            const signals = tf.tensor1d(buffer);
             
             console.log(sample_frequency);
             // console.log(num_samples === audiobuffer.length);
@@ -72,7 +73,7 @@
             
             console.log(frame_size, frame_shift, fft_size);
             
-            // var spectrogram = tf.signal.stft(buffer, frame_size, frame_shift, fft_size, 
+            var spectrogram = tf.signal.stft(signals, frame_size, frame_shift, fft_size, 
             //                                  tf.signal.hamming_window);
             // console.log(spectrogram);
             
