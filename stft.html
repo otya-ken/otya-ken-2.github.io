@@ -7,9 +7,14 @@
     </head>
     <body>
         <h1>音源の作成　ファイルをbufferとして読み込む</h1>
-        <button id="play">play</button>
-        <button id="stop">stop</button>
-        <canvas id="canvas"></canvas>
+        <h3>元音源</h3>
+        <button id="play1">play</button>
+        <button id="stop1">stop</button>
+        <h3>スペクトログラム</h3>
+        <canvas id="canvas" width="3000" height="515"></canvas>
+        <h3>逆フーリエ変換後の音声</h3>
+        <button id="play2">play</button>
+        <button id="stop2">stop</button>
     </body>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@2.0.0/dist/tf.min.js"></script>
     <script>
@@ -49,17 +54,21 @@
             const file = await fetch(wav_file);
             const arraybuffer = await file.arrayBuffer();
             const audiobuffer = await ctx.decodeAudioData(arraybuffer);
-            const sample_frequency = audiobuffer.sampleRate;
-            const num_samples = sample_frequency * audiobuffer.duration;
+            const sample_frequency = audiobuffer.sampleRate;              // 44100固定?
+            const num_samples = sample_frequency * audiobuffer.duration;  // 44100 * sec
             console.log(audiobuffer);
             
-            var buffer = audiobuffer.getChannelData(0);
-            console.log(buffer.slice(0, 5));
+            var buffer = audiobuffer.getChannelData(0);   //  一次元配列140679要素
             const signals = tf.tensor1d(buffer);
-            
-            console.log(sample_frequency);
-            // console.log(num_samples === audiobuffer.length);   True
-            console.log(num_samples);
+
+            var sig_max = buffer.reduce(function(a, b) {
+                return Math.max(a, b);
+            });
+            console.log("raw audio's max", sig_max);
+            var sig_min = buffer.reduce(function(a, b) {
+                return Math.min(a, b);
+            });
+            console.log("raw audio's min", sig_min);
             
             // stft
             frame_size = parseInt(sample_frequency * frame_size * 0.001);   // frame_size = 1102
@@ -71,60 +80,98 @@
             }
             analyser.fftsize = 1 << fft_size;         // fft_size = 2048
             var length = analyser.frequencyBinCount;  // length = 1024
+            // console.log(length);
             
-            const num_frames = Math.trunc((num_samples - frame_size) / frame_shift) + 1;
-            
-            console.log(frame_size, frame_shift, fft_size);
+            const num_frames = Math.trunc((num_samples - frame_size) / frame_shift) + 1;  // num_frames = 317
             
             var spectrogram = tf.signal.stft(signals, frame_size, frame_shift, fft_size, 
                                              tf.signal.hamming_window);
             console.log(spectrogram);
             spectrogram.print();      // 317 x 1025行列(テンソル)
-            
-            var n_spectrogram = spectrogram.dataSync();   // 一次元配列324925要素
-            console.log(n_spectrogram.slice(0, 5));
-            
-            // var spectrogram = tf.zeros([num_frames, parseInt(fft_size / 2) + 1]);
-            
-            // for (var frame_idx = 0; frame_idx < num_frames; frame_idx++) {
-            //     var start_index = frame_idx * frame_shift;
-            //     var frame = buffer.slice(start_index, start_index + frame_size);
-            //     for (var n = 0; n < frame_size; n++) {
-            //         frame[n] *= 0.54 - 0.46 * Math.cos(2 * Math.PI * n / (frame_size - 1))
-            //     }
-            //     
-            // }
+
+            var n_spe = spectrogram.abs().log().dataSync();
+
+            var s_max = n_spe.reduce(function(a, b) {
+                return Math.max(a, b);
+            });
+            var s_min = n_spe.reduce(function(a, b) {
+                return Math.min(a, b);
+            });
             
             // draw
             const canvas = document.getElementById('canvas');
             const graph = canvas.getContext('2d');
-            for (let i = 0; i < 6; i++) {
-                for (let j = 0; j < 6; j++) {
-                    graph.fillStyle = `rgb(
-                    ${Math.floor(255 - 42.5 * i)},
-                    ${Math.floor(255 - 42.5 * j)},
-                    0)`;
-                graph.fillRect(j * 10, i * 10, 10, 10);
+            const mag = 255 / Math.abs(s_max - s_min);
+            const t = length + 1;
+            for (let i = 0; i < t; i++) {
+                for (let j = 0; j < num_frames; j++) {
+                    var g = Math.floor(Math.abs(n_spe[(t * (j + 1) - (i + 1))] - s_max) * mag);
+                    graph.fillStyle = `rgb(0, ${g}, ${g})`;
+                graph.fillRect(j * 2, i * 0.5, 2, 0.5);
                 }
             }
             
-            // istft
-            var re_frequency = tf.signal.inverse_stft(spectrogram, frame_size, frame_shift, fft_size, 
-                                                      tf.signal.hamming_window);
-            re_frequency.print();
+            // istft     spectrogram   317 x 1025行列(二次元テンソル)
+            // テンソルサイズを 1025 -> 2048
+            var r_spe = tf.real(spectrogram);
+            var i_spe = tf.imag(spectrogram);
+            var rev_spe = tf.complex(r_spe.reverse(1).slice([0, 1], [num_frames, t-2]), i_spe.reverse(1).slice([0, 1], [num_frames, t-2]));
+            var re_spectrogram = spectrogram.concat(rev_spe, 1);
+
+            // .ifft()
+            re_spectrogram = re_spectrogram.ifft();
+
+            // ifft後の処理 real(実数のみ)かabs(絶対値)か
+            var re_spec = tf.abs(re_spectrogram).dataSync();
+            var res_max = re_spec.reduce(function(a, b) {
+                return Math.max(a, b);
+            });
+            console.log("istft's max", res_max);
+
+            // サイズを 2048 -> 1102 .slice([0, 0], [317, 1102])
+            //re_spectrogram = re_spectrogram.slice([0, 0], [num_frames, frame_size]);
+
+            // hamming窓を戻す .sub(tf.scalar(-0.54)).div(tf.scalar(-0.46)).acos().mul(tf.scalar((fft_size-1)/(2*Math.PI)));
+            //re_spectrogram = re_spectrogram.sub(tf.scalar(-0.54)).div(tf.scalar(-0.46)).acos().mul(tf.scalar((fft_size-1)/(2*Math.PI)));
+
+            // テンソル 317 x 1102
+            // 441 x 316 + 1102    配列140458要素 ≠ 真のデータ 140679要素
+            //var data_spectrum = re_spectrogram.dataSync();
+            //console.log(data_spectrum);
+            //var re_spectrum = [];
+            //for (var i = 0; i < num_frames; i++) {
+            //    re_spectrum.push(data_spectrum.slice(i*frame_size, i*frame_size+frame_shift));
+            //}
+            //re_spectrum.push(data_spectrum.slice((num_frames-1)*frame_size+frame_shift));
+            //console.log(re_spectrum);
+
+            //音源化　(不完全)
+            //const re_audioBuffer = await ctx.decodeAudioData(re_spectrum);
+            //return re_audioBuffer;
         }
         
-        stft_draw_istft();
+        const re_audio = stft_draw_istft();
         
-        document.querySelector("#play").addEventListener("click", async () => {
+        document.querySelector("#play1").addEventListener("click", async () => {
             // 再生中なら二重に再生されないようにする
             if(isPlaying) return;
             const sample = await setupSample();
             playSample(ctx, sample);
         });
 
+        //document.querySelector("#play2").addEventListener("click", async () => {
+            // 再生中なら二重に再生されないようにする
+        //    if(isPlaying) return;
+        //    playSample(ctx, re_audio);
+        //});
+
         // oscillatorを破棄し再生を停止する
-        document.querySelector("#stop").addEventListener("click", async () => {
+        document.querySelector("#stop1").addEventListener("click", async () => {
+            sampleSource?.stop();
+            isPlaying = false
+        });
+
+        document.querySelector("#stop2").addEventListener("click", async () => {
             sampleSource?.stop();
             isPlaying = false
         });
