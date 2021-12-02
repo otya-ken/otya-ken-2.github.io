@@ -156,7 +156,7 @@
             re_spectrum.push(data_spectrum.slice((num_frames-1)*frame_size+frame_shift));
             //console.log(re_spectrum);
 
-            //音源化　(不完全)
+            //音源化
             var re_audioBuffer = ctx.createBuffer(1, re_spectrum.length, property[0]);
             var re_spectrum_audio = re_audioBuffer.getChannelData(0);
             for (var i = 0; i < re_spectrum.length; i++){
