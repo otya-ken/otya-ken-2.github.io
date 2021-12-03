@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="ja">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Web Audio API</title>
+    </head>
+    <body>
+        <h1>音源の作成　ファイルをbufferとして読み込む</h1>
+        <h3>元音源</h3>
+        <button id="play1">play</button>
+        <button id="stop1">stop</button>
+        <h3>スペクトログラム</h3>
+        <canvas id="canvas" width="3000" height="520"></canvas>
+        <h3>逆フーリエ変換後の音声</h3>
+        <h5>playを押すと逆フーリエ変換がされます</h5>
+        <button id="play2">play</button>
+        <button id="stop2">stop</button>
+    </body>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@2.0.0/dist/tf.min.js"></script>
+    <script>
+        window.AudioContext = window.AudioContext || window.webkitAudioContext;
+        const ctx = new AudioContext();
+    
+        let sampleSource;
+        // 再生中でtrue
+        let isPlaying = false;
+
+        const wav_file = "../BASIC5000_0001.wav";
+        // 音源を取得しAudioBuffer形式に変換して返す関数
+        async function setupSample() {
+            // const response = await fetch("../BASIC5000_0001.wav");
+            const response = await fetch(wav_file);
+            const arrayBuffer = await response.arrayBuffer();
+            // Web Audio APIで使える形式に変換
+            const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
+            return audioBuffer;
+        }
+        // AudioBufferをctxに接続し再生する関数
+        function playSample(ctx, audioBuffer) {
+            sampleSource = ctx.createBufferSource();
+            // 変換されたバッファーを音源として設定
+            sampleSource.buffer = audioBuffer;
+            // 出力につなげる
+            sampleSource.connect(ctx.destination);
+            sampleSource.start();
+            isPlaying = true
+        }
+        
+        async function stft_property() {
+            const analyser = ctx.createAnalyser();
+            const source = ctx.createBufferSource();
+            const audiobuffer = await setupSample();
+            const sample_frequency = audiobuffer.sampleRate;              // 44100固定?
+            const num_samples = sample_frequency * audiobuffer.duration;  // 44100 * sec 140679
+
+            var frame_size = 1024;
+            var frame_shift = 400;
+
+            var fft_size = 1;
+            while(fft_size < frame_size){
+                fft_size *= 2;
+            }
+            analyser.fftSize = fft_size;         // fft_size = 1024
+            var length = analyser.frequencyBinCount;  // length = 512
+            // console.log(length);
+            
+            const num_frames = Math.trunc((num_samples - frame_size) / frame_shift) + 1;  // num_frames = 350
+
+            const property = [sample_frequency, frame_size, frame_shift, fft_size, num_frames, num_samples];
+            return property;
+        }
+        
+        async function stft() {
+            const audiobuffer = await setupSample();
+            var buffer = audiobuffer.getChannelData(0);   //  一次元配列140679要素
+            const signals = tf.tensor1d(buffer);
+
+            const property = await stft_property();
+
+            var spectrogram = tf.signal.stft(signals, property[1], property[2], property[3], tf.signal.hammingWindow);
+
+            return spectrogram;
+        }
+
+        async function draw() {
+            const spectrogram = await stft();
+            const property = await stft_property();
+            var n_spe = spectrogram.abs().log().dataSync();
+
+            var s_max = n_spe.reduce(function(a, b) {
+                return Math.max(a, b);
+            });
+            var s_min = n_spe.reduce(function(a, b) {
+                return Math.min(a, b);
+            });
+            
+            // draw
+            const canvas = document.getElementById('canvas');
+            const graph = canvas.getContext('2d');
+            const mag = 255 / Math.abs(s_max - s_min);
+            const t = property[3]/2 + 1;  // i = 519  j = 350
+            for (let i = 0; i < t; i++) {
+                for (let j = 0; j < property[4]; j++) {
+                    var g = Math.floor(Math.abs(n_spe[(t * (j + 1) - (i + 1))] - s_max) * mag);
+                    graph.fillStyle = `rgb(0, ${g}, ${g})`;
+                graph.fillRect(j * 2, i, 2, 1);
+                }
+            }
+        }
+
+        draw();
+
+        async function istft() {
+            const spectrogram = await stft();
+            const property = await stft_property();
+            const frame_size = property[1];
+            const frame_shift = property[2];
+            const fft_size = property[3];
+            const num_frames = property[4];
+            const t = fft_size/2 + 1;
+
+            // [350, 513] -> [350, 1024] 
+            var r_spe = tf.real(spectrogram);
+            var i_spe = tf.imag(spectrogram).mul(tf.scalar(-1));
+            var rev_spe = tf.complex(r_spe.reverse(1).slice([0, 1], [num_frames, t-2]), i_spe.reverse(1).slice([0, 1], [num_frames, t-2]));
+            var re_spectrogram = spectrogram.concat(rev_spe, 1);
+
+            // .ifft()
+            re_spectrogram = re_spectrogram.ifft();
+
+            // ifft後の処理 real(実数のみ)かabs(絶対値)か
+            var re_spectrogram = tf.real(re_spectrogram);
+
+            // hamming窓を戻す
+            // hamming = tf.scalar(0.54).sub(tf.scalar(0.46).mul(tf.cos((2*Math.PI)/(fft_size-1))))
+            //re_spectrogram = re_spectrogram.div();
+            var re_spectro = tf.tensor2d([[], ]);
+            for (var n = 0; n < frame_size; n++) {
+                var hamming = tf.scalar(0.54).sub(tf.scalar(0.46).mul(tf.cos((2*Math.PI*n)/fft_size)));
+                re_spectro = tf.concat([re_spectro, re_spectrogram.slice([0, n], [num_frames, 1]).div(hamming)], 1);
+            }
+            re_spectro.print();
+
+            // テンソル 350 x 1024
+            // 400 x 349 + 1024    配列140624要素 ≠ 真のデータ 140679要素
+            var data_spectrum = re_spectro.dataSync();
+            //console.log(data_spectrum);
+            var re_spectrum = new Float32Array(property[5]);
+            for (var i = 0; i < num_frames-1; i++) {
+                re_spectrum.set(data_spectrum.slice(i*frame_size, i*frame_size+frame_shift), i*frame_shift);
+            }
+            re_spectrum.set(data_spectrum.slice((num_frames-1)*frame_size, num_frames*frame_size), (num_frames-1)*frame_shift);
+            //console.log(re_spectrum);
+
+            //音源化　(不完全)
+            var re_audioBuffer = ctx.createBuffer(1, re_spectrum.length, property[0]);
+            var re_spectrum_audio = re_audioBuffer.getChannelData(0);
+            for (var i = 0; i < re_spectrum.length; i++){
+                re_spectrum_audio[i] = re_spectrum[i];
+            }
+            //console.log(re_spectrum_audio);
+            //const re_audioBuffer = await ctx.decodeAudioData(re_spectrum);
+            return re_audioBuffer;
+        }
+        
+        document.querySelector("#play1").addEventListener("click", async () => {
+            // 再生中なら二重に再生されないようにする
+            if(isPlaying) return;
+            const sample = await setupSample();
+            playSample(ctx, sample);
+        });
+
+        document.querySelector("#play2").addEventListener("click", async () => {
+            // 再生中なら二重に再生されないようにする
+            if(isPlaying) return;
+            const re_audio = await istft();
+            playSample(ctx, re_audio);
+        });
+
+        // oscillatorを破棄し再生を停止する
+        document.querySelector("#stop1").addEventListener("click", async () => {
+            sampleSource?.stop();
+            isPlaying = false
+        });
+
+        document.querySelector("#stop2").addEventListener("click", async () => {
+            sampleSource?.stop();
+            isPlaying = false
+        });
+        
+    </script>
+    <style>
+        div{
+            padding-bottom: 40px;
+            border-bottom: 2px solid #666;
+        }
+    </style>
+</html>
