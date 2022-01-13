@@ -310,6 +310,7 @@
         }
 
         function draw2(tensor) {
+            tensor = tf.transpose(tensor);
             //const spectrogram = await stft(wav);
             //const property = await stft_property(wav);
             const spectrogram = tensor;
