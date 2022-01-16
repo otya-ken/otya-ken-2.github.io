@@ -332,7 +332,7 @@
                 for (let j = 0; j < tensor.shape[0]; j++) {
                     var g = Math.floor(Math.abs(n_spe[(t * (j + 1) - (i + 1))] - s_max) * mag);
                     graph.fillStyle = `rgb(0, ${g}, ${g})`;
-                graph.fillRect(j * 4, i*2, 4, 2);
+                graph.fillRect(j * 2, i*3, 2, 3);
                 }
             }
         }
