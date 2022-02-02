@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    
+</head>
+<body>
+    <!--コメントアウト-->
+    <!--<p>練習</p>-->
+    <h1>リアルタイム超解像</h1>
+    <!--<button id="download">play</button>-->
+    <!--<h3>48000Hz</h3>
+    <button id="play1">play</button>
+    <button id="stop1">stop</button>
+    <h3>16000Hz</h3>
+    <button id="play2">play</button>
+    <button id="stop2">stop</button>-->
+    <h3>raw data 8000Hz</h3>
+    <button id="play3">play</button>
+    <button id="stop3">stop</button>
+    <h3>スペクトログラム</h3>
+    <canvas id="canvas1" width="3000" height="520"></canvas>
+    <!--<h3>cubic補完後</h3>
+    <button id="play4">play</button>
+    <button id="stop4">stop</button>-->
+    <h3>predicted data 16000Hz</h3>
+    <button id="play5">play</button>
+    <button id="stop5">stop</button>
+    <h3>スペクトログラム</h3>
+    <canvas id="canvas2" width="3000" height="520"></canvas>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@2.0.0/dist/tf.min.js"></script>
+    <script>
+        window.AudioContext = window.AudioContext || window.webkitAudioContext;
+        const ctx8000 = new AudioContext({"sampleRate":8000});
+        const ctx16000 = new AudioContext({"sampleRate":16000});
+        const analyser = ctx8000.createAnalyser();
+        var frame_size = 1024;
+        var fft_size = 1;
+        while(fft_size < frame_size){
+            fft_size *= 2;
+        }
+        //console.log(fft_size);
+        analyser.fftSize = fft_size;         // fft_size = 2048
+        var length = analyser.frequencyBinCount;  // length = 1024
+        //console.log(analyser.fftSize);
+        //console.log(length);
+
+
+        let sampleSource;
+        // 再生中でtrue
+        let isPlaying = false;
+
+        //const wav_file1 = "./BASIC5000_0001.wav";
+        //const wav_file2 = "./BASIC5000_0001_3.wav";
+        //const wav_file3 = "./BASIC5000_0001_6x.wav";
+        const wav_file3 = "./p376_283_6x.wav";
+        //const wav_file3 = "./p334_334_6x.wav"
+        // 音源を取得しAudioBuffer形式に変換して返す関数
+        async function setupSample(ctx, wav) {
+            // const response = await fetch("../BASIC5000_0001.wav");
+            const response = await fetch(wav);
+            const arrayBuffer = await response.arrayBuffer();
+            //ctx.sampleRate = 8000;
+            //console.log(ctx.sampleRate);
+            // Web Audio APIで使える形式に変換
+            const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
+            //console.log(audioBuffer);
+            //setdata(audioBuffer.getChannelData(0));
+            return audioBuffer;
+        }
+
+        function playSample(ctx, audioBuffer) {
+            sampleSource = ctx.createBufferSource();
+            // 変換されたバッファーを音源として設定
+            sampleSource.buffer = audioBuffer;
+            // 出力につなげる
+            sampleSource.connect(ctx.destination);
+            sampleSource.start();
+            isPlaying = true
+        }
+
+        //document.querySelector("#play1").addEventListener("click", async () => {
+        //    // 再生中なら二重に再生されないようにする
+        //    if(isPlaying) return;
+        //    const sample = await setupSample(wav_file1);
+        //    playSample(ctx, sample);
+        //});
+
+        //document.querySelector("#play2").addEventListener("click", async () => {
+        //    // 再生中なら二重に再生されないようにする
+        //    if(isPlaying) return;
+        //    const re_audio = await setupSample(wav_file2);
+        //    playSample(ctx, re_audio);
+        //});
+
+        document.querySelector("#play3").addEventListener("click", async () => {
+            // 再生中なら二重に再生されないようにする
+            if(isPlaying) return;
+            const re_audio = await setupSample(ctx8000, wav_file3);
+            playSample(ctx8000, re_audio);
+        });
+
+        // oscillatorを破棄し再生を停止する
+        //document.querySelector("#stop1").addEventListener("click", async () => {
+        //    sampleSource?.stop();
+        //    isPlaying = false
+        //});
+
+        //document.querySelector("#stop2").addEventListener("click", async () => {
+        //    sampleSource?.stop();
+        //    isPlaying = false
+        //});
+
+        document.querySelector("#stop3").addEventListener("click", async () => {
+            sampleSource?.stop();
+            isPlaying = false
+        });
+        
+        function upsampling2x(x) {
+            // x : float32array
+            // xt = tf.tensor1d(x);
+
+            let l = x.length;
+            let a = -0.75;
+            let c1 = -0.125 * a + 0.5;
+            let c2 = 0.125 * a;
+    
+            // 補完位置からみて左右に二つ隣までのサンプル値を使うので、左側に一つ、右側に二つパディング
+            // また int16 のまま計算するとオーバーフローするのでいったん float32 に変換する
+            //xx = np.concatenate([[x[0]], x.astype(np.float32), [x[-1], x[-1]]])
+
+            let xx = new Float32Array(l+3);
+            xx.set([x[0]], 0);
+            xx.set(x, 1);
+            xx.set([x[x.length-1], x[x.length-1]], xx.length-2);
+            //console.log(xx);
+    
+            // 補完値の計算
+            //let y = c1 * (xx[1:-2] + xx[2:-1]) + c2 * (xx[:-3] + xx[3:])
+
+            //let xxtf = tf.tensor1d(xx);
+            //c1 = tf.scalar(c1);
+            //c2 = tf.scalar(c2);
+            //let xx1 = tf.add(tf.slice(xxtf, 1, xx.length-3), tf.slice(xxtf, 2, xx.length-3));
+            //let xx2 = tf.add(tf.slice(xxtf, 0, xx.length-3), tf.slice(xxtf, 3, xx.length-3));
+            //let y = tf.add(tf.mul(c1, xx1), tf.mul(c2, xx2));
+            //y = y.dataSync();
+            
+            let y = new Float32Array(l);
+            for (let j = 0; j < l; ++j) {
+                let yj = c1 * (xx[j+1] + xx[j+2]) + c2 * (xx[j] + xx[j+3]);
+                y.set(yj);
+            }
+            
+            // y : float32array
+    
+            // 補完した結果：[x0, y0, ..., x_{n-1}, y_{n-1}]]] を元の x の dtype に合わせて作成
+            //let xy = np.ndarray(len(x) * 2, x.dtype)
+            //let xy[::2] = x
+            //let xy[1::2] = y
+            let xy = new Float32Array(2*l);
+            for (let i = 0; i < l; i++) {
+                xy.set([x[i], y[i]], 2*i);
+            }
+            // xy : float32array
+            return xy;
+        }
+        //console.log(upsampling2x([1, 2, 3, 4]));
+
+        async function cubic2x(wav) {
+            const audiobuffer = await setupSample(ctx8000, wav);
+            console.log("  元音声  ", audiobuffer.duration, "(ms)");
+            const buffer = audiobuffer.getChannelData(0);
+            const re_buffer = upsampling2x(buffer);
+            //console.log(re_buffer);
+            // re_buffer : float32array
+            return re_buffer;
+        }
+        //cubic2x(wav_file3).then(value => { return stft(cubic(value)) })
+        //.then(value => {console.log(value)});
+        
+        //function cubic(wav_file4) {
+        //    //const wav_file4 = cubic2x(wav_file3);
+        //    //console.log(wav_file4.length);
+        //    var re_audioBuffer = ctx16000.createBuffer(1, wav_file4.length, 16000);
+        //    var re_spectrum_audio = re_audioBuffer.getChannelData(0);
+        //    for (var i = 0; i < wav_file4.length; i++){
+        //        re_spectrum_audio[i] = wav_file4[i];
+        //    }
+        //    document.querySelector("#play4").addEventListener("click", async () => {
+        //        // 再生中なら二重に再生されないようにする
+        //        if(isPlaying) return;
+        //        playSample(ctx16000, re_audioBuffer);
+        //    });
+        //
+        //    return re_spectrum_audio;
+        //}
+        
+        async function stft(buffer) {
+            //const audiobuffer = await setupSample(wav);
+            //var buffer = audiobuffer.getChannelData(0);   //  一次元配列140679要素
+            //const signals = tf.tensor1d(buffer).mul(1 << 15);
+            const signals = tf.tensor1d(buffer);
+
+            //const property = await stft_property(wav);
+            let num_frames = Math.floor((buffer.length - 256) / (64*2)) + 1;
+            let property = [16000, 256, 64*2, 256, num_frames, buffer.length];
+
+            //var spectrogram = tf.signal.stft(signals, property[1], property[2], property[3], tf.signal.hannWindow);
+            var spectrogram = tf.signal.stft(signals, property[1], property[2], property[3]);
+
+            // spectrogram : tensor2d
+            return spectrogram;
+        }
+
+        function fft(buffer) {
+            const time_start = performance.now();
+            // buffer : float32array
+            let num_frames = Math.floor((buffer.length - 256) / (64*2)) + 1;
+            //property = [sample_frequency, frame_size, frame_shift, fft_size, num_frames, num_samples];
+            let property = [16000, 256, 64*2, 256, num_frames, buffer.length];
+            let frame_size = property[1];
+            let frame_shift = property[2];
+            let fft_size = property[3];
+
+            // 配列のフレーム計算でフレームを集める
+            let frame = tf.zeros([num_frames, frame_size]).arraySync();
+
+            // tensorflowで窓をかけるときに集める
+            //let windowed_data = tf.zeros([num_frames, frame_size]).arraySync();
+            //for (let i = 0; i < num_frames; ++i) {
+            //    // フレームの始点
+            //    let start_index = i * frame_shift;
+
+            //    // 1フレーム分
+            //    let frame = buffer.slice(start_index, start_index + frame_size);
+
+            //    // 窓
+            //    let window = tf.signal.hannWindow(frame_size);
+
+            //    // フレームに窓をかける
+            //    let frame_window = tf.tensor1d(frame).mul(window).dataSync();
+
+            //    // 集める
+            //    windowed_data[i] = frame_window;
+            //}
+            //// windowed_dataをtensor2dに
+            //windowed_data = tf.tensor2d(windowed_data);
+
+            const frame_time = performance.now();
+            // tensorflowのフレーム計算
+            //let frame = tf.signal.frame(tf.tensor1d(buffer), frame_size, frame_shift);
+            //frame = tf.tensor2d(frame);
+
+            // 配列のフレーム計算
+            for (let i = 0; i < num_frames; ++i) {
+                let start_index = i * frame_shift;
+                let m_frame = buffer.slice(start_index, start_index + frame_size);
+                frame[i] = m_frame;
+            }
+
+            const frame_end = performance.now();
+
+            const mul_time = performance.now();
+            // 窓
+            let window = tf.signal.hannWindow(frame_size);
+
+            // tensorflowの窓かけ
+            //frame = tf.tensor2d(frame);
+            //let windowed_data = frame.mul(window);
+
+            // 配列の窓かけ
+            window = window.dataSync();
+            for (let j = 0; j < num_frames; ++j) {
+                for (let k = 0; k < frame_size; ++k) {
+                    frame[j][k] *= window[k];
+                }
+            }
+            frame = tf.tensor2d(frame);
+
+            const mul_end = performance.now();
+
+            // fft
+            const fft_time = performance.now();
+
+            // tensorflowで窓かけしたとき
+            //let spectrum = tf.spectral.rfft(windowed_data, fft_size);
+            // 配列で窓かけしたとき
+            let spectrum = tf.spectral.rfft(frame, fft_size);
+
+            const fft_end = performance.now();
+
+            console.log("-----------");
+            console.log("  frame time  ", frame_end - frame_time, "(ms)");
+            console.log("  mul time  ", mul_end - mul_time, "(ms)");
+            console.log("  fft time  ", fft_end - fft_time, "(ms)");
+            console.log("  all time  ", fft_end - time_start, "(ms)");
+            return spectrum;
+        }
+
+        async function t_istft(tensor) {
+            // tensor : complex tensor2d
+            //console.log(tensor.shape);
+            const spectrogram = tensor;
+            //const spectrogram = await stft(wav);
+            //const property = await stft_property(wav);
+            const seg = 256;
+            const shift = 64*2;
+            let property = [16000, seg, shift, 256, tensor.shape[0], tensor.shape[0]*shift+seg];
+            const frame_size = property[1];
+            const frame_shift = property[2];
+            const fft_size = property[3];
+            const num_frames = property[4];
+            const t = fft_size/2 + 1;
+
+            // [350, 513] -> [350, 1024]
+            //const data_array = spectrogram.dataSync();
+            //const spe_line = spectrogram.shape[0];
+            //const spe_row = spectrogram.shape[1];
+            //let r_spe = tf.zeros([spe_line, spe_row]).arraySync();
+            //let i_spe = tf.zeros([spe_line, spe_row]).arraySync();
+
+            //let r_spe = new Float32Array(spe_line);
+            //let i_spe = new Float32Array(spe_line);
+            //for (let i = 0; i < spe_line; ++i) {
+            //    for (let j = 0; j < spe_row; ++j) {
+                    //r_spe[i][j] = data_array[2 * (spe_row*i + j)];
+                    //i_spe[i][j] = -1 * data_array[2 * (spe_row*i + j) + 1];
+
+                    //r_spe_m = new Float32Array(spe_row);
+                    //i_spe_m = new Float32Array(spe_row);
+                    //r_spe_m.set(data_array[2 * (spe_row*i + j)]);
+                    //i_spe_m.set(-1 * data_array[2 * (spe_row*i + j) + 1]);
+                    //r_spe.set(r_spe_m);
+                    //i_spe.set(i_spe_m);
+            //    }
+            //}
+            //console.log(r_spe);
+            //r_spe = tf.tensor2d(r_spe);
+            //i_spe = tf.tensor2d(i_spe);
+
+            var r_spe = tf.real(spectrogram);
+            var i_spe = tf.imag(spectrogram).mul(tf.scalar(-1));
+            var rev_spe = tf.complex(r_spe.reverse(1).slice([0, 1], [num_frames, t-2]), i_spe.reverse(1).slice([0, 1], [num_frames, t-2]));
+            var re_spectrogram = spectrogram.concat(rev_spe, 1);
+
+            // .ifft()
+            re_spectrogram = re_spectrogram.ifft();
+
+            // ifft後の処理 real(実数のみ)かabs(絶対値)か
+            //var re_spectrogram = tf.real(re_spectrogram).div(1 << 15);
+            var re_spectrogram = tf.real(re_spectrogram);
+
+            // hamming窓を戻す
+            //hamming = tf.scalar(0.54).sub(tf.scalar(0.46).mul(tf.cos((2*Math.PI)/(fft_size-1))))
+            //re_spectrogram = re_spectrogram.div();
+            // var re_spectro = tf.tensor2d([[], ]);
+            // for (var n = 0; n < frame_size; n++) {
+            //     var hamming = tf.scalar(0.54).sub(tf.scalar(0.46).mul(tf.cos((2*Math.PI*n)/fft_size)));
+            //     re_spectro = tf.concat([re_spectro, re_spectrogram.slice([0, n], [num_frames, 1]).div(hamming)], 1);
+            // }
+            //console.log(re_spectro);
+            //re_spectro.print();
+
+            // テンソル 350 x 1024
+            // 400 x 349 + 1024    配列140624要素 ≠ 真のデータ 140679要素
+            // var data_spectrum = re_spectro.dataSync();
+            //console.log(data_spectrum);
+            // var re_spectrum = new Float32Array(property[5]);
+            // for (var i = 0; i < num_frames-1; i++) {
+            // re_spectrum.set(data_spectrum.slice(i*frame_size, i*frame_size+frame_shift), i*frame_shift);
+            // }
+            // re_spectrum.set(data_spectrum.slice((num_frames-1)*frame_size, num_frames*frame_size), (num_frames-1)*frame_shift);
+            //console.log(re_spectrum);
+
+            //音源化　(不完全)
+            // var re_audioBuffer = ctx16000.createBuffer(1, re_spectrum.length, property[0]);
+            // var re_spectrum_audio = re_audioBuffer.getChannelData(0);
+            // for (var i = 0; i < re_spectrum.length; i++){
+            //     re_spectrum_audio[i] = re_spectrum[i];
+            // }
+            //console.log(re_spectrum_audio);
+            //const re_audioBuffer = await ctx.decodeAudioData(re_spectrum);
+            // return re_audioBuffer;
+            // 総サンプル数
+            let num_samples = frame_shift * (num_frames - 1) + frame_size;
+
+            // 各フレーム内での窓関数の値
+            let window = tf.signal.hannWindow(frame_size);
+
+            // 窓の高さの二乗
+            let window_square = window.mul(window).arraySync();
+
+            // 振幅 * 窓の高さを値とする フレーム数 x フレーム長 の2次元配列
+            let w_frames = re_spectrogram.mul(window).arraySync();
+
+            // 振幅 * 窓の高さ^2 を値とする配列．フレームの重なったところは足しこむ
+            let w2_amps = new Float32Array(num_samples);
+
+            // 窓の高さ^2 を足しこむ配列
+            let w2 = new Float32Array(num_samples);
+
+            for (var i = 0; i < num_frames; ++i) {
+                let offset = i * frame_shift; // フレーム開始位置
+                for (var j = 0; j < frame_size; ++j) {
+                    w2_amps[offset + j] += w_frames[i][j];
+                    w2[offset + j] += window_square[j];
+                }
+            }
+
+            // サンプル値
+            let amps = new Float32Array(num_samples);
+            for (var i = 0; i < num_samples; ++i) {
+                // 両端で窓高さ^2 が 0 に近くなるので割らないようにする
+                if (w2[i] > 10 ** -4) {
+                    amps[i] = w2_amps[i] / w2[i];
+                }
+            }
+
+            // 音源化
+            var re_audioBuffer = ctx16000.createBuffer(1, num_samples, property[0]);
+            var re_spectrum_audio = re_audioBuffer.getChannelData(0);
+            re_spectrum_audio.set(amps, 0);
+
+            return re_audioBuffer;
+        }
+
+        function load_wav(spectrogram){
+            const r_spe = tf.real(spectrogram);
+            const i_spe = tf.imag(spectrogram);
+            let magnitude = spectrogram.abs().add(10**(-10)).log();
+            let angle = tf.atan2(i_spe, r_spe);
+
+            return [magnitude, angle];
+        }
+
+        function draw1(tensor) {
+            //const spectrogram = await stft(wav);
+            //const property = await stft_property(wav);
+            const spectrogram = tensor;
+            var n_spe = spectrogram.abs().log().dataSync();
+
+            var s_max = n_spe.reduce(function(a, b) {
+                return Math.max(a, b);
+            });
+            var s_min = n_spe.reduce(function(a, b) {
+                return Math.min(a, b);
+            });
+            
+            // draw
+            const canvas = document.getElementById('canvas1');
+            const graph = canvas.getContext('2d');
+            const mag = 255 / Math.abs(s_max - s_min);
+            const t = 256/2 + 1;  // i = 519  j = 350
+            for (let i = 0; i < t; i++) {
+                for (let j = 0; j < tensor.shape[0]; j++) {
+                    var g = Math.floor(Math.abs(n_spe[(t * (j + 1) - (i + 1))] - s_max) * mag);
+                    graph.fillStyle = `rgb(0, ${g}, ${g})`;
+                graph.fillRect(j * 2, i*3, 2, 3);
+                }
+            }
+        }
+
+        function draw2(tensor) {
+            //const spectrogram = await stft(wav);
+            //const property = await stft_property(wav);
+            tensor = tf.transpose(tensor);
+            const spectrogram = tensor;
+            var n_spe = spectrogram.abs().log().dataSync();
+
+            var s_max = n_spe.reduce(function(a, b) {
+                return Math.max(a, b);
+            });
+            var s_min = n_spe.reduce(function(a, b) {
+                return Math.min(a, b);
+            });
+            
+            // draw
+            const canvas = document.getElementById('canvas2');
+            const graph = canvas.getContext('2d');
+            const mag = 255 / Math.abs(s_max - s_min);
+            const t = 256/2 + 1;  // i = 519  j = 350
+            for (let i = 0; i < t; i++) {
+                for (let j = 0; j < tensor.shape[0]; j++) {
+                    var g = Math.floor(Math.abs(n_spe[(t * (j + 1) - (i + 1))] - s_max) * mag);
+                    graph.fillStyle = `rgb(0, ${g}, ${g})`;
+                graph.fillRect(j * 2, i*3, 2, 3);
+                }
+            }
+        }
+
+        async function pred_spec_2d(time_size, sp_size, net, magnitude, angle) {
+            const transpose = a => a[0].map((_, c) => a.map(r => r[c]));
+            // time_size : 32
+            // sp_size   : 129
+            // net       : model
+            // magnitude : 対数振幅スペクトル tensor
+            // angle     : 位相スペクトル    tensor
+            // return    : スペクトログラム 対数振幅スペクトル tensor, tensor
+        
+            // 処理開始時刻
+            const time_start = performance.now();
+
+            //const magnitude1 = magnitude;
+            //ネスト化
+            magnitude = magnitude.arraySync();
+            //angle = angle.arraySync();
+            //setdata(magnitude);
+
+            //出力の真ん中部分の採用
+            //amp = 2 * np.sqrt(2)
+            //time_size = 32
+            //sp_size = 129
+            let ur = 2;
+            let data = magnitude;
+            //console.log(data);
+
+            //------
+            // 入力バッチの作成
+            //------
+            // リストに集めておいて後で tf.Tensor に変換する
+            //let input_sp = tf.tensor2d([[], ]);
+            let input_sp = [];
+        
+            // half overlap しながら time_size 個のフレームのスペクトル下半分を集める
+            //for i in range(0, len(data) - time_size + 1, time_size // 2):
+            //    input_sp.append(data[i : i + time_size, : sp_size // ur])
+            //let i = 0;
+            //console.log(data.slice(0, 0 + time_size));
+            //console.log(transpose(data.slice(i, i + time_size)));
+            //console.log(transpose(data.slice(i, i + time_size)).slice(0, Math.floor(sp_size/ur)));
+            //console.log(transpose(transpose(data.slice(i, i + time_size)).slice(0, Math.floor(sp_size/ur))));
+        
+            let spc = Math.floor(sp_size/ur);
+            //let spc = sp_size;
+            for (let i = 0; i < (data.length - time_size + 1); i+=Math.floor(time_size/2) ) {
+                //tf.concat([input_sp, data.slice([i, 0], [time_size, Math.floor(sp_size/ur)])], 1);
+                input_sp.push(transpose(transpose(data.slice(i, i + time_size)).slice(0, spc)));
+            }
+            //console.log(input_sp);
+            // 全フレーム数が time_size // 2 で割り切れないときは
+            // 最後に後ろから time_size フレーム取ってバッチに入れる
+            //has_remainder = (len(data) % (time_size // 2) > 0)
+            //if has_remainder:
+            //    input_sp.append(data[-time_size :, : sp_size // ur])
+            let has_remainder = (data.length % Math.floor(time_size/2) > 0);
+            if (has_remainder) {
+                input_sp.push(transpose(transpose(data.slice(data.length-time_size, data.length)).slice(0, spc)));
+            }
+    
+            // tf.Tensor に変換
+            //console.log(input_sp);
+            input_sp = tf.stack(input_sp);
+    
+            // 入力作成の終了時刻
+            const time_preproc_finish = performance.now();
+    
+            //print("#frames", len(data))
+            //print("input_sp.shape", input_sp.shape)
+            //print("has_remainder", has_remainder)
+            //console.log(input_sp);
+
+            //------
+            // 予測の実行
+            //------
+            // 入力の shape を (バッチサイズ, フレーム数, 周波数ビン数, 1) に変換する必要がある
+            //let input_sp1 = input_sp.slice([0, 0, 0], [input_sp.shape[0], input_sp.shape[1], spc]);
+            let output_sp = net.predict(tf.reshape(input_sp, [-1, time_size, Math.floor(sp_size/2), 1]));
+            //console.log(spc);  //129
+            //console.log(input_sp1);
+            //let output_sp = input_sp.slice([0, 0, 64], [input_sp.shape[0], input_sp.shape[1], 65]);
+            //print("output_sp.shape", output_sp.shape)
+            //let output_sp1 = output_sp.arraySync();
+            //document.body.innerHTML+=JSON.stringify(output_sp1); 
+            //yourContainer.innerHTML = JSON.stringify(lineChartData);
+    
+            // ネットワークの計算の終了時刻
+            const time_net_finish = performance.now();
+
+            //console.log(output_sp);
+            //------
+            // スペクトルの上半分を時間方向に貼り合わせる
+            //------
+            // リストに集めておいて後で tf.Tensor に変換する
+            let upper_sp = []
+            output_sp = output_sp.arraySync();
+            //console.log(output_sp);
+
+            // 最初の time_size / 4 フレーム
+            //upper_sp.append(output_sp[0][:time_size // 4, :])
+            upper_sp = upper_sp.concat(output_sp[0].slice(0, Math.floor(time_size/4)));
+            //console.log(upper_sp);
+            // 各 time_size フレームの中央 2/4 を貼り合わせる
+            let bgn = Math.floor(time_size / 4);     // time_size フレーム中での切り出し開始位置
+            let end = Math.floor(time_size / 4 * 3); // time_size フレーム中での切り出し終了位置
+
+            //for i in range(len(output_sp) - has_remainder):
+            //    upper_sp.append(output_sp[i][bgn:end, :])
+            for (let i = 0; i < output_sp.length - has_remainder; i++) {
+                upper_sp = upper_sp.concat(output_sp[i].slice(bgn, end));
+            }
+            //console.log(output_sp.length-has_remainder);
+            //console.log(upper_sp);
+
+            // (端数がない場合の）最後の time_size / 4 フレーム
+            bgn = Math.floor(time_size / 4 * 3); // time_size フレーム中での切り出し開始位置
+            end = time_size;                     // time_size フレーム中での切り出し終了位置
+            let ix_in_batch = output_sp.length - 1 - has_remainder; // バッチ中での位置
+            //console.log(output_sp.length);
+            //console.log(has_remainder);
+            //console.log(ix_in_batch);
+            //upper_sp.append(output_sp[ix_in_batch][bgn:end, :])
+            upper_sp = upper_sp.concat(output_sp[ix_in_batch].slice(bgn, end));
+
+            // 端数がある場合
+            if (has_remainder) {
+                let n_remain = data.length % Math.floor(time_size / 2); // 余りのフレーム数
+                //upper_sp.append(output_sp[-1][-n_remain:, :])
+                upper_sp = upper_sp.concat(output_sp[output_sp.length-1].slice(output_sp[output_sp.length-1].length-n_remain, output_sp[output_sp.length-1].length));
+            }
+            
+            //console.log(upper_sp);
+            // 上半分のスペクトルを時間方向に繋げて Tensor にする
+            upper_sp = tf.stack(upper_sp, axis=0);
+            //print("upper_sp.shape", upper_sp.shape)
+    
+            //---------
+            // 入力の下半分のスペクトルと貼り合わせる
+            //---------
+            //pred_sp = tf.concat([data[:, :sp_size // ur], upper_sp], axis=1)
+            //console.log(transpose(transpose(data).slice(0, Math.floor(sp_size/ur))));
+            //console.log(upper_sp);
+            let pred_sp = tf.concat([transpose(transpose(data).slice(0, Math.floor(sp_size/ur))), upper_sp], axis=1);
+            //print("pred_sp.shape", pred_sp.shape)
+            //console.log(pred_sp.shape);
+
+            //setdata(pred_sp.arraySync());
+            //let pred_sp1 = pred_sp.arraySync();
+            //document.body.innerHTML+=JSON.stringify(pred_sp1); 
+    
+            // 後処理（データ整形）の終了時刻
+            let time_postproc_finish = performance.now();
+
+            //console.log(pred_sp);
+            //---------
+            // ISFT を実行
+            //---------
+            // 入力の位相スペクトルと予測した振幅スペクトルから複素スペクトルを作る
+            // tf.exp(x + yj) => e^x * (cos(y) + j*sin(y))  x : pred_sp  y : angle
+            //complex_sp = tf.exp(tf.cast(pred_sp, "complex64") + angle *tf.complex(0.0, 1.0));
+            //let pred_sp = magnitude1;
+            let complex_sp = (tf.complex(tf.cos(angle), tf.sin(angle))).mul(tf.exp(pred_sp));
+
+            // 小さいところをゼロにつぶす処理：不要？
+            //spectral_cnn_2d = np.where(np.abs(spectral_cnn_2d) >= amp/10, spectral_cnn_2d, 0)
+            // 逆短時間FFT
+            //_, wav = signal.istft(complex_sp.numpy().T, 16000, nperseg=256, noverlap=64)
+            //wav = np.array(wav, dtype=np.int16) // 戻しておかないとすごい音がする
+            let wav = await t_istft(complex_sp);
+            //wav = wav.getChannelData(0);
+    
+            // ISTFT の終了時刻
+            const time_istft_finish = performance.now();
+
+            //---------
+            // 時間計測結果を stderr に表示
+            //---------
+            //console.log("Timing data:");
+            console.log("-----------");
+            //console.log("  preproc :", time_preproc_finish - time_start, "(ms)");
+            //console.log("  network :", time_net_finish - time_preproc_finish, "(ms)");
+            console.log("  network :", time_net_finish - time_start, "(ms)");
+            //console.log("  postproc:", time_postproc_finish - time_net_finish, "(ms)");
+            //console.log("  istft   :", time_istft_finish - time_postproc_finish, "(ms)");
+            console.log("  istft   :", time_istft_finish - time_net_finish, "(ms)");
+            console.log("-----------");
+            console.log("  total   :", time_istft_finish - time_start, "(ms)");
+
+            //---------
+            // 波形と予測した振幅スペクトルを返す
+            //---------
+            return [wav, tf.transpose(pred_sp)];
+        }
+
+        //var matrix;
+        //function setdata(data) {
+        //    matrix = data;
+        //}
+        //document.querySelector("#download").addEventListener("click", async () => {
+        //    // 再生中なら二重に再生されないようにする
+        //    let write_json=JSON.stringify(matrix);
+        //    let blob=new Blob([write_json], {type: 'application/json'});
+        //    let a=document.createElement("a");
+        //    a.href=URL.createObjectURL(blob);
+        //    document.body.appendChild(a); // Firefoxで必要
+        //    a.download='ranking_bl.json';
+        //    a.click();
+        //    document.body.removeChild(a); // Firefoxで必要
+        //    URL.revokeObjectURL(a.href);
+        //});
+
+        async function pred_audio(wav_file){
+            // 入力 元データ 8000Hz -> cubic2x 16000Hz -> stft -> 予測 -> istft -> 出力 16000Hz
+
+            //モデル読み込み
+            const time_start = performance.now();
+            const model = await tf.loadLayersModel('./tfjs_target_dir/model.json');
+            //const spectrogram = await cubic2x(wav_file3).then(value => { return stft(cubic(value)) });
+            const model_time = performance.now();
+
+            // cubic補間
+            const cubic_wav = await cubic2x(wav_file);
+            const cubic2x_time = performance.now();
+
+            // fft(stft)
+            //const spectrogram = await stft(cubic_wav);
+            const spectrogram = fft(cubic_wav);
+            const stft_time = performance.now();
+
+            // スペクトログラムの変換
+            const wav_data = load_wav(spectrogram);
+            const magnitude = wav_data[0];
+            const angle = wav_data[1];
+
+            // 予測
+            const predict= await pred_spec_2d(time_size=32, sp_size=129, net=model, magnitude, angle);
+            const pred_wav = predict[0];
+            const pred_spec = predict[1];
+
+            // 音源再生
+            document.querySelector("#play5").addEventListener("click", async () => {
+                // 再生中なら二重に再生されないようにする
+                if(isPlaying) return;
+                playSample(ctx16000, pred_wav);
+            });
+            const time_end = performance.now();
+
+            // スペクトログラム表示
+            draw1(spectrogram);
+            draw2(pred_spec);
+
+            // 時間表示
+            console.log("-----------");
+            console.log("  load model param  ", model_time - time_start, "(ms)");
+            console.log("  cubic2x  ", cubic2x_time - model_time, "(ms)");
+            console.log("  stft  ", stft_time - cubic2x_time, "(ms)");
+            console.log("  all time  ", time_end - time_start, "(ms)");
+        }
+
+        pred_audio(wav_file3);
+
+        //document.querySelector("#stop4").addEventListener("click", async () => {
+        //    sampleSource?.stop();
+        //    isPlaying = false
+        //});
+
+        document.querySelector("#stop5").addEventListener("click", async () => {
+            sampleSource?.stop();
+            isPlaying = false
+        });
+    </script>
+</body>
+</html>
