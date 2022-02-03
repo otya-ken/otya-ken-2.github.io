@@ -172,7 +172,7 @@
 
         async function cubic2x(wav) {
             const audiobuffer = await setupSample(ctx8000, wav);
-            console.log("  元音声  ", audiobuffer.duration, "(ms)");
+            console.log("  元音声  ", audiobuffer.duration, "(s)");
             const buffer = audiobuffer.getChannelData(0);
             const re_buffer = upsampling2x(buffer);
             //console.log(re_buffer);
